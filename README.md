@@ -10,3 +10,9 @@ for crawling websites
 	page : no of page to crawl		| int
 	attr : attr of tag to find		| array
 	record: name of file to record which files have been downloaded | string
+	
+How to use
+
+in console just type php example1.php
+or
+in browser path/webspider/example1.php
