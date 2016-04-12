@@ -9,6 +9,7 @@
 			class : specific class to find  | array
 			page : no of page to crawl		| int
 			attr : attr of tag to find		| array
+			record: name of file to record which files have been downloaded | string
 			
 */
 error_reporting(E_ALL);
