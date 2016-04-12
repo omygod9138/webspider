@@ -1,8 +1,8 @@
 # webspider
-for crawling websites
+for crawling kickass website
 
 	@param $obj : object settings for crawling
-			
+	base_url : url to use for concating	| string		
 	url : the url to crawl			| string
 	drama: the series to find		| array
 	tag : specific tag to find		| string
