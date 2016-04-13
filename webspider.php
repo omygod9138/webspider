@@ -39,7 +39,7 @@ class WebSpider{
 		$fp = fopen ($this->settings['record']."_record.txt", "w");
 		$log = json_encode($this->episode);
 		fwrite($fp, $log);
-		fclose($fp);
+		fclose($fp); 
 	}
 	
 	public function get_html($url = NULL){
