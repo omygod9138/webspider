@@ -4,7 +4,7 @@
 	
 	@param $obj : object settings for crawling
 			url : the url to crawl			| string
-			drama: the series to find		| array
+			keyword: the series to find		| array
 			tag : specific tag to find		| string
 			class : specific class to find  | array
 			page : no of page to crawl		| int
@@ -16,17 +16,23 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 class WebSpider{
 	private $settings = array();
-	private $links_found = array();
-	private $episode = array();
 	private $page_count = 1;
 	public function __construct($obj){
 		
 		include_once('simple_html_dom.php');
 		set_time_limit(0);
 		$this->setVar($obj);
+		$this->links_found = array();
+
 		if(file_exists($this->settings['record']."_record.txt")){
 			$this->episode = json_decode(file_get_contents($this->settings['record']."_record.txt"), true);
+		}else{
+			$this->episode = array();
 		}
+		
+		if(!file_exists("dl") && !is_dir("dl")){
+			mkdir("dl");         
+		} 
 		
 	}
 	public function __destruct(){
@@ -35,8 +41,9 @@ class WebSpider{
 		fwrite($fp, $log);
 		fclose($fp);
 	}
+	
 	public function get_html($url = NULL){
-		echo "get html...".$url.PHP_EOL;
+		//echo "get html...".$url.PHP_EOL;
 		if($url !== NULL){
 			$ch = curl_init();
 			curl_setopt($ch, CURLOPT_HEADER, 0);
@@ -59,17 +66,26 @@ class WebSpider{
 		$tag = $this->get_tag(0);
 		foreach($html->find($tag) as $link)
 		{
-			//echo strlen($link->innertext);
-			//echo "<br>";
-			if(strlen($link->innertext) == 0) continue;
-			//echo "strlen > 0 ".$link->innertext."<br>";
+			
 			$str = strtolower($link->innertext);
-			foreach($this->settings['drama'] AS $title)
+			foreach($this->settings['keyword'] AS $title)
 			{
 				//echo "matching ".$title."<br>";
 				if(strpos(strtolower($str), $title) !== false)
 				{
+					$season = $this->settings['regexp'];
+					preg_match($season, $str, $season_ary);
+					if(!array_key_exists($title, $this->episode)){
+						$this->episode[$title] = array();
+					}
 					
+					if($season_ary[0] != NULL && !in_array($season_ary[0], $this->episode[$title])){
+						echo $season_ary[0]." not null ".PHP_EOL;
+						$this->episode[$title][] = $season_ary[0];
+						$this->links_found[$link->innertext] = $link->href;
+						$this->write_log("[".date("Y-m-d H:i:s")."] episode - ".$link->innertext." added ".PHP_EOL, 'log.txt');
+					}
+					/*
 					$season = "/[sS][0-9][0-9]/";
 					$ep = "/[eE][0-9][0-9]/";
 					preg_match($season, $str, $season_ary);
@@ -87,9 +103,9 @@ class WebSpider{
 					if(!in_array($e, $this->episode[$title][$s])){
 						$this->episode[$title][$s][] = $e;
 						$this->links_found[$link->innertext] = $link->href;
-						$this->write_log("[".date("Y-m-d H:i:s")."] episode - ".$link->innertext." added ".PHP_EOL);
+						$this->write_log("[".date("Y-m-d H:i:s")."] episode - ".$link->innertext." added ".PHP_EOL, 'log.txt');
 					}
-					
+					*/
 					break;
 					
 				}
@@ -102,40 +118,6 @@ class WebSpider{
 		
 	}
 	
-	public function downLoad(){
-		echo "downloading...".PHP_EOL;
-		
-		foreach($this->links_found AS $file => $link){
-			echo "directing to download page ".PHP_EOL;
-			$download_link = $this->settings['base_url'].$link;
-			//echo "directing to download page ".$download_link."<br>";
-			//echo "file name - ".$file."<br>";
-			$returned = $this->get_html($download_link);
-			$download_page = str_get_html($returned);
-			if (!file_exists("dl") && !is_dir("dl")) {
-				mkdir("dl");         
-			} 
-			$path = "dl/".$file.'.torrent';
-			//echo "file name - ".$path."<br>";
-			$tag = $this->get_tag(1);
-			$dlink = $download_page->find($tag)[0];
-			//echo "link - ".$dlink->href."<br/>";
-			echo "text - ".$file.PHP_EOL;
-			$url = "https:".$dlink->href;
-			
-			if(!$this->copySecureFile($url, $path)){
-				$this->write_log("[".date("Y-m-d H:i:s")."] something went wrong with downloading ".$file.PHP_EOL);
-			} 
-			
-		}
-		echo "download ended".PHP_EOL;
-		if($this->settings['page'] > 0 && $this->settings['page'] > $this->page_count){
-			$this->page_count++;
-			$this->start_crawling();
-		}
-		exit();
-	}
-	
 	public function start_crawling(){
 		
 		$url = ($this->page_count > 1) ? $this->settings['url'].$this->page_count."/" : $this->settings['url'];
@@ -144,7 +126,7 @@ class WebSpider{
 		if($this->analyze_html($html) > 0){
 			
 			echo "new list found ".PHP_EOL;
-			$this->downLoad();
+			$this->getData();
 			
 		}else{
 			
@@ -161,7 +143,69 @@ class WebSpider{
 				sleep(600);
 				$this->start_crawling();
 			}
-			
+		}
+	}
+	
+	public function getData(){
+		echo "fetching data...".PHP_EOL;
+		if($this->settings['page'] > 0 && $this->settings['page'] > $this->page_count){
+			$this->page_count++;
+			$this->start_crawling();
+		}
+		$func = $this->settings['action'];
+		if(!method_exists($this, $func)){
+			$func = 'getLink';
+		}
+		
+		foreach($this->links_found AS $file => $link){
+			$this->$func($link, $file);
+		}
+		echo "download ended".PHP_EOL;
+		exit();
+	}
+	
+	public function downLoad($link, $file){
+		echo "directing to download page ".PHP_EOL;
+		$download_link = $this->settings['base_url'].$link;
+		//echo "file name - ".$file."<br>";
+		$returned = $this->get_html($download_link);
+		$download_page = str_get_html($returned);
+		$path = 'dl/'.$file.'.torrent';
+		//echo "file name - ".$path."<br>";
+		$tag = $this->get_tag(1);
+		$dlink = $download_page->find($tag)[0];
+		//echo "link - ".$dlink->href."<br/>";
+		echo "text - ".$file.PHP_EOL;
+		$url = "https:".$dlink->href;
+		if(!$this->copySecureFile($url, $path)){
+			$this->write_log("[".date("Y-m-d H:i:s")."] something went wrong with downloading ".$file.PHP_EOL, 'log.txt');
+		} 
+	}
+	
+	public function getLink($link, $file){
+		echo "getLink...".PHP_EOL;
+		$_link = $this->settings['base_url'].$link;
+		$returned = $this->get_html($_link);
+		$_page = str_get_html($returned);
+		$tag = $this->get_tag(1);
+		$dlink = $_page->find($tag)[0];
+		$filename =  $this->getFilename($this->settings['keyword'], $file);
+		$href = $dlink->href;
+		$str = "[".date("Y-m-d H:i:s")."]".$file." ".$href.PHP_EOL;
+		$this->write_log($str, $filename);
+	}
+	
+	public function getFilename($keywords, $file){
+		//echo gettype($keywords).$keywords.PHP_EOL;
+		foreach($keywords As $keyword){
+			//echo "file ".$file.PHP_EOL;
+			//echo "filename ".$keyword.'.txt'.PHP_EOL;
+			if(strpos("bla ".strtolower($file), $keyword) !== false){
+				//echo PHP_EOL;
+				//echo "file ".$file.PHP_EOL;
+				//echo "filename ".$keyword.".txt".PHP_EOL;
+				return $keyword.".txt";
+			}
 		}
 	}
 	
@@ -175,12 +219,13 @@ class WebSpider{
 		
 	}
 	
-	public function write_log($str){
+	public function write_log($str, $filename){
 		
 		echo 'logging new log '.$str.PHP_EOL;
-		$fp  = file_get_contents('log.txt');
+		
+		$fp  = file_get_contents($filename);
 		$fp .= $str;
-		file_put_contents('log.txt', $fp);
+		file_put_contents($filename, $fp);
 		
 	}
 	
