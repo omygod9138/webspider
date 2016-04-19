@@ -34,7 +34,7 @@ class WebSpider{
 		}
 		if(file_exists($this->settings['record']."_record.txt")){
 			if(is_writable($this->settings['record']."_record.txt")){
-				echo "file can write <br>".PHP_EOL;
+				echo $this->settings['record']."_record.txt can write <br>".PHP_EOL;
 			}
 			$this->episode = json_decode(file_get_contents($this->settings['record']."_record.txt"), true);
 			
@@ -70,7 +70,7 @@ class WebSpider{
 			curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
 			curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 			curl_setopt($ch, CURLOPT_FAILONERROR, 0);
-			curl_setopt($ch, CURLOPT_ENCODING, "gzip"); 
+			curl_setopt($ch, CURLOPT_ENCODING, "utf-8"); 
 			curl_setopt($ch, CURLOPT_URL, $url);
 			$returned = curl_exec($ch);
 			curl_close ($ch);
@@ -89,17 +89,17 @@ class WebSpider{
 		}
 		$html = str_get_html($html);
 		$tag = $this->get_tag($this->settings['tag']);
-		echo "tag to match ".$tag.PHP_EOL;
+		//echo "tag to match ".$tag.PHP_EOL;
 		foreach($html->find($tag) as $link)
 		{
 			$str = strtolower($link->innertext);
-			echo $str.PHP_EOL;
+			
 			foreach($this->settings['keyword'] AS $title)
 			{
-				//echo "matching ".$title."<br>";
+				echo "matching ".$title.$str."<br>".PHP_EOL;
 				if(strpos(strtolower($str), $title) !== false)
 				{
-					//echo $str.PHP_EOL;
+					//echo "inner text ".$link->outertext.PHP_EOL."<br>";
 					if($this->settings['regexp'] != NULL){
 						$season = $this->settings['regexp'];
 						preg_match($season, $str, $season_ary);
@@ -145,7 +145,11 @@ class WebSpider{
 		echo 'url....'.$url.PHP_EOL;
 		//get the html from url given
 		$html = $this->get_html($url);
-		
+		if(!$html){
+			echo 'connection fail'.PHP_EOL;
+			sleep(1);
+			$this->start_crawling();
+		}
 		if($this->analyze_html($html) > 0){
 			
 			echo "new list found ".PHP_EOL;
@@ -158,11 +162,12 @@ class WebSpider{
 				$this->start_crawling();
 			
 			}else{
-				
-				echo "no new list...retry in 10 minutes".PHP_EOL;
-				$this->page_count = 1;
-				sleep(600);
-				$this->start_crawling();
+				if($this->settings['retry']){
+					echo "no new list...retry in 10 minutes".PHP_EOL;
+					$this->page_count = 1;
+					sleep(3);
+					$this->start_crawling();
+				}
 			}
 		}
 		
@@ -207,15 +212,26 @@ class WebSpider{
 		$_link = $this->settings['base_url'].$link;
 		if($this->settings['depth'] > 1){
 			$returned = $this->get_html($_link);
+			if(!$returned){
+				echo "connection fail...reconnect".PHP_EOL;
+				sleep(1);
+				$this->getLink($link, $file);
+			}
 			$_page = str_get_html($returned);
 			$tag = $this->get_tag($this->settings['downLoad_tag']);
-			$dlink = $_page->find($tag)[0];
-			$href = $dlink->href;
+			$href = '';
+			//$dlink = $_page->find($tag)[0];
+			foreach($_page->find($tag) AS $dlink){
+				
+				$href .= $dlink->href." ";
+				
+				
+			}
 			$str = "[".date("Y-m-d H:i:s")."]".$file." ".$href.PHP_EOL;
 		}else{
 			$str = "[".date("Y-m-d H:i:s")."]".$file." ".$_link.PHP_EOL;
 		}
-		$this->write_log($str, "log_[".date("Y-m-d")."].txt");
+		$this->write_log($str, $this->settings['record']."/".$this->settings['record']."_log_[".date("Y-m-d")."].txt");
 	}
 	
 	public function getPage($html){
@@ -256,9 +272,13 @@ class WebSpider{
 	public function write_log($str, $filename){
 		
 		echo 'logging new log '.$str.PHP_EOL;
-		$fp  = file_get_contents($filename);
-		$fp .= $str;
-		file_put_contents($filename, $fp);
+		if(!file_exists($this->settings['record']) && !is_dir($this->settings['record'])){
+			mkdir($this->settings['record']);
+			
+		}
+		$fp = fopen($filename, 'a');
+		fwrite($fp, $str);
+		fclose($fp);
 		
 		
 	}
