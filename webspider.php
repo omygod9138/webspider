@@ -42,7 +42,7 @@ class WebSpider{
 			$this->episode = array();
 		}
 		
-		if($this->settings['page'] > 1){
+		if(isset($this->settings['page']) && $this->settings['page'] > 1){
 			$html = $this->get_html($this->settings['url']);
 			$this->getPage($html);
 		}
@@ -82,7 +82,7 @@ class WebSpider{
 	*/
 	public function analyze_html($html){
 		echo "start analyzing html...".PHP_EOL;
-		if($this->settings['page'] > 1){
+		if(isset($this->settings['page']) && $this->settings['page'] > 1){
 			$this->page_count ++;
 			echo "refresh pagination...".PHP_EOL;
 			$this->getPage($html);
@@ -153,7 +153,7 @@ class WebSpider{
 			
 		}else{
 			
-			if($this->settings['page'] > 0 && $this->settings['page'] > $this->page_count){
+			if(isset($this->settings['page']) && $this->settings['page'] > 0 && $this->settings['page'] > $this->page_count){
 				echo "crawling next page".PHP_EOL;
 				$this->start_crawling();
 			
@@ -171,7 +171,7 @@ class WebSpider{
 	public function getData(){
 		
 		echo "fetching data...".PHP_EOL;
-		if($this->settings['page'] > 0 && $this->settings['page'] > $this->page_count){
+		if(isset($this->settings['page']) && $this->settings['page'] > 0 && $this->settings['page'] > $this->page_count){
 			$this->start_crawling();
 		}
 		$func = $this->settings['action'];
@@ -267,12 +267,10 @@ class WebSpider{
 		$str = '';
 		foreach($ary AS $element){
 			
-			$str .= $element['tag']."[";
+			$str .= $element['tag'];
 			if(count($element['attr']) > 1){
-				$str .= $element['attr'][0]."=".$element['attr'][1]."] ";
+				$str .= "[".$element['attr'][0]."=".$element['attr'][1]."] ";
 				
-			}else{
-				$str .= $element['attr'][0]."] ";
 			}
 		}
 		return trim($str);
@@ -281,11 +279,11 @@ class WebSpider{
 	
 	public function setVar($obj){
 		$this->settings = $obj;
-		$this->settings['col'] = array_keys($this->settings['attr']);
+		//$this->settings['col'] = array_keys($this->settings['attr']);
 		if(!isset($this->settings['depth']))
 		{
 			$this->settings['depth'] = 1;
 		}
-		$this->settings['pagination_attr'] = $this->get_tag($this->settings['pagination']);
+		$this->settings['pagination_attr'] = isset($this->settings['pagination'])? $this->get_tag($this->settings['pagination']) : NULL;
 	}
 }
