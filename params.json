@@ -1,0 +1,6 @@
+{
+  "name": "Webspider",
+  "tagline": "for crawling websites",
+  "body": "# webspider\r\nfor crawling website\r\n\r\n\t@param $obj : object settings for crawling\r\n\tbase_url : url to use for concating\t| string\t\t\r\n\turl : the url to crawl\t\t\t| string\r\n\tkeyword: keyword to find\t\t| array\r\n\ttag : specific tag to find\t\t| array\r\n\tdownLoad_tag : specific download tag \t| array\r\n\tpage : no of page to crawl\t\t| int\r\n\tdepth : how deep to crawl\t\t| int\r\n\tpagination : attr to get pagination\t| array\r\n\tregexp : for filter strings\t\t| string\r\n\trecord: name of file to record which files have been downloaded | string\r\n\taction: just get link or download(only torrent) | string\r\nHow to use\r\n\r\nin console just type php example1.php\r\n\r\nor\r\n\r\nin browser path/webspider/example1.php\r\n",
+  "note": "Don't delete this file! It's used internally to help with page regeneration."
+}
